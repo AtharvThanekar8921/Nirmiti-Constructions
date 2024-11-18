@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Report Sorted</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="mb-4">Sort Daily Reports</h2>
+        <div class="form-group">
+            <label for="vehicleDropdown">Select Vehicle:</label>
+            <select id="vehicleDropdown" class="form-control">
+                <option value="">-- Select Vehicle --</option>
+                <!-- Options dynamically populated -->
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate" class="form-control">
+        </div>
+        <button id="filterButton" class="btn btn-primary"style="background-color: #f5bf23;">Get Reports</button>
+        <button id="printButton" class="btn btn-primary"style="background-color: #f5bf23;">Print</button>
+
+        <div id="results" class="mt-5">
+            <!-- Filtered results will be displayed here -->
+
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function () {
+            // Populate dropdown with vehicle names
+            $.get('/api/vehicles', function (data) {
+                const options = data.map(vehicle => `<option value="${vehicle.vehicleName}">${vehicle.vehicleName}</option>`).join('');
+                $('#vehicleDropdown').append(options);
+            });
+
+            // Fetch and display filtered data
+            $('#filterButton').on('click', function () {
+                const vehicle = $('#vehicleDropdown').val();
+                const startDate = $('#startDate').val();
+                const endDate = $('#endDate').val();
+
+                if (!vehicle || !startDate || !endDate) {
+                    alert('Please select a vehicle and provide a valid date range.');
+                    return;
+                }
+
+                $.get('/api/filterDailyReports', { vehicle, startDate, endDate }, function (data) {
+                    if (data.length === 0) {
+                        $('#results').html('<p>No reports found for the selected criteria.</p>');
+                        return;
+                    }
+
+                    // Filter out _id and __v fields
+                    const filteredData = data.map(report => {
+                        const { _id, __v, ...rest } = report;
+                        return rest;
+                    });
+
+                    // Generate table headers dynamically
+                    const headers = Object.keys(filteredData[0]).map(field => `<th>${field}</th>`).join('');
+                    // Generate table rows dynamically
+                    const rows = filteredData.map(report => `
+                        <tr>
+                            ${Object.values(report).map(value => `<td>${value}</td>`).join('')}
+                        </tr>
+                    `).join('');
+
+                    // Display table
+                    $('#results').html(`
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>${headers}</tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    `);
+                }).fail(function () {
+                    alert('Error fetching reports.');
+                });
+            });
+        });
+          //print report
+          $('#printButton').on('click', function () {
+            const printContents = document.querySelector('.container').innerHTML;
+            const originalContents = document.body.innerHTML;
+            document.body.innerHTML = printContents;
+            window.print();
+            document.body.innerHTML = originalContents;
+            location.reload();
+        });
+    </script>
+</body>
+</html>
